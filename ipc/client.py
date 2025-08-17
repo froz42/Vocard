@@ -123,7 +123,7 @@ class IPCClient:
             raise Exception("Connection failed.")
             
         except aiohttp.WSServerHandshakeError as e:
-            self._logger.error("Access forbidden: Missing bot ID, version mismatch, or invalid password.")
+            self._logger.error("Access forbidden: Missing bot ID, version mismatch, or invalid password.", exc_info=e)
             
         except Exception as e:
             self._logger.error("Error occurred while connecting to dashboard.", exc_info=e)
