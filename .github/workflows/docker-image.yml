@@ -1,10 +1,12 @@
-name: Docker Image CI
+name: Create and publish a Docker image
 
 on:
   push:
-    branches: [ "main" ]
-    paths-ignore:
-        - '**.md'
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+env:
+  REGISTRY: ghcr.io
 
 permissions:
   packages: write
@@ -14,16 +16,44 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag vocard:latest
-      
-    - name: Log in to GitHub Docker Registry
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Push the Docker image
-      run: |
-        docker tag vocard:latest ghcr.io/chocomeow/vocard:latest  # Ensure lowercase
-        docker push ghcr.io/chocomeow/vocard:latest  # Ensure lowercase
+      - name: Log in to the Container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker For Main Image
+        id: meta_main
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}
+
+      - name: Build and push Main Docker image
+        id: push_main
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta_main.outputs.tags }}
+          labels: ${{ steps.meta_main.outputs.labels }}
+
+      - name: Extract metadata (tags, labels) for Docker for Lavalink
+        id: meta_lavalink
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/lavalink
+      
+      - name: Build and push Lavalink Docker image
+        id: push_lavalink
+        uses: docker/build-push-action@v4
+        with:
+          context: ./lavalink
+          file: ./lavalink/Dockerfile-lavalink
+          push: true
+          tags: ${{ steps.meta_lavalink.outputs.tags }}
+          labels: ${{ steps.meta_lavalink.outputs.labels }}
+      
